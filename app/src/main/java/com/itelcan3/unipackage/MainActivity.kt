@@ -51,8 +51,11 @@ fun AppsButtonsUnistall() {
     var unusedApps by remember { mutableStateOf<List<LeastUsedApp>>(emptyList()) }
     var showDialogForApp by remember { mutableStateOf<LeastUsedApp?>(null) }
     var isScanning by remember { mutableStateOf(false) }
+    
+    val dayOptions = listOf(7, 15, 30, 90, 180, 360)
+    var selectedDays by remember { mutableIntStateOf(30) }
+    var expanded by remember { mutableStateOf(false) }
 
-    // Automatically check permission when the user returns to the app
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -65,13 +68,13 @@ fun AppsButtonsUnistall() {
         }
     }
 
-    LaunchedEffect(hasPermission) {
+    LaunchedEffect(hasPermission, selectedDays) {
         if (hasPermission) {
             isScanning = true
             withContext(Dispatchers.IO) {
                 try {
                     val reader = LeastUsedAppsReader(context)
-                    val apps = reader.getLeastUsedApps()
+                    val apps = reader.getLeastUsedApps(days = selectedDays)
                     withContext(Dispatchers.Main) {
                         unusedApps = apps
                         isScanning = false
@@ -173,13 +176,45 @@ fun AppsButtonsUnistall() {
                     context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
                 }
             } else {
-                Text(
-                    text = "Unused Apps",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Unused Apps",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Box {
+                        TextButton(
+                            onClick = { expanded = true },
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color.Green)
+                        ) {
+                            Text("Last $selectedDays days")
+                        }
+                        
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                            modifier = Modifier.background(Color(0xFF1A1A1A))
+                        ) {
+                            dayOptions.forEach { days ->
+                                DropdownMenuItem(
+                                    text = { Text("$days days", color = Color.White) },
+                                    onClick = {
+                                        selectedDays = days
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
 
                 if (isScanning) {
                     Text(text = "Scanning for unused apps...", color = descriptionColor)
