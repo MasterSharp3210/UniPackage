@@ -29,8 +29,7 @@ class LeastUsedAppsReader(
 
     @RequiresPermission(Manifest.permission.PACKAGE_USAGE_STATS)
     fun getLeastUsedApps(
-        days: Int = 180,
-        appListLimit: Int = 15
+        days: Int = 180
     ): List<LeastUsedApp> {
         val endTime = System.currentTimeMillis()
         val cutoffTime = endTime - (days.toLong() * 24 * 60 * 60 * 1000)
@@ -87,6 +86,5 @@ class LeastUsedAppsReader(
                 }
             }
             .sortedBy { it.lastTimeUsed }
-            .take(appListLimit)
     }
 }
