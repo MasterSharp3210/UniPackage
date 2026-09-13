@@ -23,31 +23,28 @@ class LeastUsedAppsReader(
 
     private val usageStatsManager =
         context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-    
+        
     private val storageStatsManager =
         context.getSystemService(Context.STORAGE_STATS_SERVICE) as StorageStatsManager
 
     @RequiresPermission(Manifest.permission.PACKAGE_USAGE_STATS)
     fun getLeastUsedApps(
         days: Int = 180,
-        AppListlimit: Int = 15
+        appListLimit: Int = 15
     ): List<LeastUsedApp> {
         val endTime = System.currentTimeMillis()
-        val startTime = endTime - days.toLong() * 24 * 60 * 60 * 1000
+        val cutoffTime = endTime - (days.toLong() * 24 * 60 * 60 * 1000)
 
-        // Get usage stats for the period
         val statsMap: Map<String, UsageStats> =
             usageStatsManager.queryAndAggregateUsageStats(
-                startTime,
+                cutoffTime,
                 endTime
             )
 
-        // Get all installed apps
         val installedApps = context.packageManager.getInstalledApplications(0)
 
         return installedApps
             .filter { appInfo ->
-                // Filter out system apps and the app itself
                 val isSystem = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
                 val isSelf = appInfo.packageName == context.packageName
                 !isSystem && !isSelf
@@ -59,6 +56,12 @@ class LeastUsedAppsReader(
                     
                     val totalTime = usageStat?.totalTimeInForeground ?: 0L
                     val lastUsed = usageStat?.lastTimeUsed ?: 0L
+
+                    val isInactive = lastUsed == 0L || lastUsed < cutoffTime
+
+                    if (!isInactive) {
+                        return@mapNotNull null
+                    }
 
                     val appName = context.packageManager
                         .getApplicationLabel(appInfo)
@@ -83,7 +86,7 @@ class LeastUsedAppsReader(
                     null
                 }
             }
-            .sortedWith(compareBy({ it.totalTimeInForeground }, { it.lastTimeUsed }))
-            .take(AppListlimit)
+            .sortedBy { it.lastTimeUsed }
+            .take(appListLimit)
     }
 }
